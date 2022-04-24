@@ -16,6 +16,8 @@ courseIDs = {}
 def loadCourseIDs():
   for c in CLASSES:
     courseIDs[c] = os.getenv(c)
+    # lets make this birectional
+    courseIDs[str(courseIDs[c])] = c
 
 async def background():
   await client.wait_until_ready()
@@ -32,7 +34,7 @@ async def background():
     messages = grading_stats.send_notify()
     # messages is a course->messages to send
     for m in messages: # for each course
-      c = os.getenv(m)
+      c = os.getenv(courseIDs[str(m)]) # m is the course id
       for message in messages[m]: #send the messages to the coure's channel
         channel = client.get_channel(int(c))
         await channel.send(message)
