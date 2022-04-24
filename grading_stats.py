@@ -13,7 +13,7 @@ def loadGraders():
   with open(GRADINGFILE) as grader_file:
     lines = csv.reader(grader_file, delimiter=",")
     for line in lines:
-      graders[line[0]] = (line[1],line[2])
+      graders[line[0]] = (line[2],line[3])
   return graders
 
 # just read in the assignment data
@@ -90,6 +90,10 @@ def getRemainingGrading(grading_assignments, questions,sub):
 # return a name->[people to grade]
 def getGradingAssigns(course,assignment):
   questions = {}
+  questions["1"] = ["Aryan Kaul", "Casey Hackett"]
+  questions["2"] = ["Madison Radford"]
+  questions["3"] = ["Keonwoo Oh"]
+  questions["4"] = ["Yifan Yang"]
   return questions
   
 
