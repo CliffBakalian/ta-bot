@@ -90,10 +90,15 @@ def getRemainingGrading(grading_assignments, questions,sub):
 # return a name->[people to grade]
 def getGradingAssigns(course,assignment):
   questions = {}
-  questions["1"] = ["Aryan Kaul", "Casey Hackett"]
-  questions["2"] = ["Madison Radford"]
-  questions["3"] = ["Keonwoo Oh"]
-  questions["4"] = ["Yifan Yang"]
+  if course == "CMSC330":
+    questions["1"] = ["Aryan Kaul", "Casey Hackett"]
+    questions["2"] = ["Madison Radford"]
+    questions["3"] = ["Keonwoo Oh", "Yifan Yang"]
+    questions["4"] = ["Yifan Yang"]
+    
+  else:
+    questions["1.1"] = ["Aryan Kaul", "Casey Hackett"]
+    questions["1.2"] = ["Madison Radford"]
   return questions
   
 
@@ -117,34 +122,39 @@ def notify(graders,notify_list):
   for grader in notify_list:
     questions = notify_list[grader]
     if graders[grader][0] in messages:
-      messages[graders[grader][0]].append(graders[grader][1] + "Don't forget to grade: " + ",".join(questions)) 
+      if graders[grader][1] in messages:
+        messages[graders[grader][0]][graders[grader][1]].append("Don't forget to grade: " + ",".join(questions))
+      else:
+        messages[graders[grader][0]][graders[grader][1]] = [("Don't forget to grade: " + ",".join(questions))]
     else:
-      messages[graders[grader][0]] = [graders[grader][1] + "Don't forget to grade: " + ",".join(questions)]
+        messages[graders[grader][0]] = {graders[grader][1]:[("Don't forget to grade: " + ",".join(questions))]}
   return messages
 
-def send_notify():
-  semester = loadSemester()
+# returns class->assignment->graderID->message_to_send
+def send_notify(semester=None,graders=None):
+  if semester == None:
+    semester = loadSemester()
+  if graders == None:
+    graders = loadGraders()
+
   courses = getCourses(semester)
   assignments ={}
-  graders = loadGraders()
   messages = {}
   for course in courses:
     assignments[course] = getAssignments(semester,course)
   for c in assignments:
     assigns = assignments[c]
     for a in assigns:
-      grading_assigns = getGradingAssigns(course,a)
-      questions,sub = getGrading(semester,course,a)
+      grading_assigns = getGradingAssigns(c,a)
+      questions,sub = getGrading(semester,c,a)
       if questions != None:
         remaining = getRemainingGrading(grading_assigns,questions,sub)
         notify_list = make_notify_list(remaining)
         message_dict = notify(graders,notify_list)
         for m in message_dict:
           if m in messages:
-            messages[m] = messages[m] + (message_dict[m])
+            messages[m][a] = message_dict[m]
           else:
-            messages[m] = message_dict[m]
+            messages[m] = {a:message_dict[m]}
         
   return messages 
-
-print(send_notify())
