@@ -90,15 +90,6 @@ def getRemainingGrading(grading_assignments, questions,sub):
 # return a name->[people to grade]
 def getGradingAssigns(course,assignment):
   questions = {}
-  if course == "CMSC330":
-    questions["1"] = ["Aryan Kaul", "Casey Hackett"]
-    questions["2"] = ["Madison Radford"]
-    questions["3"] = ["Keonwoo Oh", "Yifan Yang"]
-    questions["4"] = ["Yifan Yang"]
-    
-  else:
-    questions["1.1"] = ["Aryan Kaul", "Casey Hackett"]
-    questions["1.2"] = ["Madison Radford"]
   return questions
   
 
@@ -140,10 +131,12 @@ def send_notify(semester=None,graders=None):
   courses = getCourses(semester)
   assignments ={}
   messages = {}
+  #course -> assign_name -> user-> [messages]
   for course in courses:
     assignments[course] = getAssignments(semester,course)
   for c in assignments:
     assigns = assignments[c]
+    messages[c] = {}
     for a in assigns:
       grading_assigns = getGradingAssigns(c,a)
       questions,sub = getGrading(semester,c,a)
@@ -152,9 +145,11 @@ def send_notify(semester=None,graders=None):
         notify_list = make_notify_list(remaining)
         message_dict = notify(graders,notify_list)
         for m in message_dict:
-          if m in messages:
-            messages[m][a] = message_dict[m]
-          else:
-            messages[m] = {a:message_dict[m]}
+          #if a in messages[c]:
+          messages[c][a] = message_dict[m]
+          #else:
+          #  messages[c] = {a:message_dict[m]}
         
   return messages 
+
+print(send_notify())
