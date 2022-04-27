@@ -64,7 +64,7 @@ async def grader_notify(ctx):
   if grader_name == "ProfAccident":
     for g in graders:
       ta = tas[g]
-      to_send = single_grader_notify(str(member_ids[ta[1]]),ta)
+      to_send = single_grader_notify(str(ta[1]),ta)
       await ctx.send(to_send)
   else:
     ta = tas[grader_name]
