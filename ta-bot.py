@@ -69,13 +69,13 @@ async def grader_notify(ctx):
   else:
     ta = tas[grader_name]
     to_send = single_grader_notify(grader_name,ta)
+    if to_send == "":
+      to_send = "Congraulations! You graded everything!"
     await ctx.send(to_send)
 
 def single_grader_notify(author,ta):
   to_send = notify_grader(ta[0],author)
-  if to_send == "":
-    to_send = "Congraulations! You graded everything!"
-  else:
+  if to_send != "":
     to_send = "<@!"+str(member_ids[author])+">"+to_send+"\n"
   return to_send
 
