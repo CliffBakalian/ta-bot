@@ -4,6 +4,8 @@ import os
 import csv
 import json
 
+import sheets_parser
+
 GRADINGFILE = ".graders.csv"
 ASSIGNMENTFILE= ".assignments.json"
 
@@ -61,48 +63,32 @@ def getGrading(semester,course,assignment):
 def getRemainingGrading(grading_assignments, questions,sub):
   finished = {}
   for question in questions:
-    graders = grading_assignments[question["Name"]]
-    graded = question["Graded"]
-    num_left = int(sub/(len(graders)))
-    total_graded = 0
-    remaining = {}
-    for grader in graders:
+    if question["Name"] in grading_assignments:
+      graders = grading_assignments[question["Name"]]
+      graded = question["Graded"]
+      num_left = int(sub/(len(graders)))
       total_graded = 0
-      remaining[grader] = num_left
-      for counts in graded:
-        ta = counts["Grader"]
-        count = counts["Count"]
-        total_graded += count
-        if ta == grader:
-          remaining[grader] = max(0,num_left - count)
-      if total_graded >= sub:
-        break
-    if total_graded < sub:
-      remaining = {key:val for key, val in remaining.items() if val != 0}
-      finished[question["Name"]] = list(remaining.keys())
+      remaining = {}
+      for grader in graders:
+        total_graded = 0
+        remaining[grader] = num_left
+        for counts in graded:
+          ta = counts["Grader"]
+          count = counts["Count"]
+          total_graded += count
+          if ta == grader:
+            remaining[grader] = max(0,num_left - count)
+        if total_graded >= sub:
+          break
+      if total_graded < sub:
+        remaining = {key:val for key, val in remaining.items() if val != 0}
+        finished[question["Name"]] = list(remaining.keys())
   return finished
 
 # will need to integrade to google sheets
-# return a name->[people to grade]
+# return a question_name->[people to grade]
 def getGradingAssigns(course,assignment):
   questions = {}
-  if course  == "CMSC250":
-    if assignment == "HW1":
-      questions["1.1"] = ["Person 1","Person 2"]
-      questions["1.2"] = ["Person 3","Person 4"]
-      questions["1.3"] = ["Person 1","Person 4"]
-      questions["1.4"] = ["Person 2","Person 3"]
-    elif assignment == "HW2":
-      questions["1.1"] = ["Person 3"]
-      questions["1.2"] = ["Person 1","Person 2"]
-      questions["1.3"] = ["Person 1","Person 4"]
-    else:
-      questions["1.1"] = ["Person 1","Person 2"]
-  else:
-      questions["1"] = ["Person 8"]
-      questions["2"] = ["Person 5","Person 7"]
-      questions["3"] = ["Person 5","Person 6"]
-
   return questions
   
 

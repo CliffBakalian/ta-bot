@@ -3,6 +3,7 @@ import sys
 import datetime
 import grading_stats
 
+import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -13,16 +14,30 @@ CLASSES = ["CMSC250","CMSC330"]
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-bot = commands.Bot(command_prefix='!')
+
+intents = discord.Intents.default()
+intents.members = True
+
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 courseIDs = {}
 graders = {}
+member_ids = {}
 tas = {}
 semester = {}
 
 def loadCourseIDs():
   for c in CLASSES:
     courseIDs[c] = os.getenv(c)
+
+def loadMemberIDs():
+  ids = {}
+  for guild in bot.guilds:
+    members = guild.members
+    for member in members:
+      ids[member.name] = member.id
+  return ids
+
 
 def load_graders():
   people = grading_stats.loadGraders()
@@ -46,16 +61,26 @@ def notify_grader(course,name):
 @bot.command(name="grading",help='Reponds with what you have left to grade')
 async def grader_notify(ctx):
   grader_name = ctx.message.author.name
-  ta = tas[grader_name]
-  to_send = notify_grader(ctx,ta[0],ta[1])
+  if grader_name == "ProfAccident":
+    for g in graders:
+      ta = tas[g]
+      to_send = single_grader_notify(str(member_ids[ta[1]]),ta)
+      await ctx.send(to_send)
+  else:
+    ta = tas[grader_name]
+    to_send = single_grader_notify(grader_name,ta)
+    await ctx.send(to_send)
+
+def single_grader_notify(author,ta):
+  to_send = notify_grader(ta[0],author)
   if to_send == "":
     to_send = "Congraulations! You graded everything!"
   else:
-    to_send = "<@!"+str(ctx.message.author.id)+">\n"+to_send
-  await ctx.send(to_send)
+    to_send = "<@!"+str(member_ids[author])+">"+to_send+"\n"
+  return to_send
 
 async def grading_reminder():
-  messages = send_notify(semester,graders)
+  messages = grading_stats.send_notify(semester,graders)
   for course in messages:
     channel = bot.get_channel(int(courseIDs[course]))
     for assignment in messages[course]:
@@ -75,10 +100,14 @@ async def timesheets():
 @bot.event
 async def on_ready():
   loadCourseIDs()
+  global graders
   graders = load_graders()
+  global member_ids
+  member_ids = loadMemberIDs() 
   semester = grading_stats.loadSemester()
   scheduler = AsyncIOScheduler()
   scheduler.add_job(timesheets, CronTrigger(hour="12",minute="0",second="0",day="5"))
   scheduler.start()
+  print("done connecting")
 
 bot.run(TOKEN)
