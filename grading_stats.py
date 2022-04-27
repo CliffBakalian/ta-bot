@@ -60,54 +60,66 @@ def getGrading(semester,course,assignment):
 # questions is a question json from the file
 def getRemainingGrading(grading_assignments, questions,sub):
   finished = {}
-  for q_name in grading_assignments:
-    graders = grading_assignments[q_name]
-    grading = {}
+  for question in questions:
+    graders = grading_assignments[question["Name"]]
+    graded = question["Graded"]
+    num_left = int(sub/(len(graders)))
     total_graded = 0
-
-    # array of graders and amount they graded
-    for question in questions:
-      graded = question["Graded"]
-      done = {}
-      for g in graded:
-        done[g["Grader"]] = g["Count"]
-        total_graded = total_graded + g["Count"]  
-      # don't do anything if all graded
-      if total_graded == sub:
-        continue
-      else:
-        # go through the grades
-        for grader in graders:
-          if grader in done:
-            grading[grader] = done[grader]
-          else:
-            grading[grader] = 0
-        finished[q_name] = (grading,sub)
-  
+    remaining = {}
+    for grader in graders:
+      total_graded = 0
+      remaining[grader] = num_left
+      for counts in graded:
+        ta = counts["Grader"]
+        count = counts["Count"]
+        total_graded += count
+        if ta == grader:
+          remaining[grader] = max(0,num_left - count)
+      if total_graded >= sub:
+        break
+    if total_graded < sub:
+      remaining = {key:val for key, val in remaining.items() if val != 0}
+      finished[question["Name"]] = list(remaining.keys())
   return finished
 
 # will need to integrade to google sheets
 # return a name->[people to grade]
 def getGradingAssigns(course,assignment):
   questions = {}
+  if course  == "CMSC250":
+    if assignment == "HW1":
+      questions["1.1"] = ["Person 1","Person 2"]
+      questions["1.2"] = ["Person 3","Person 4"]
+      questions["1.3"] = ["Person 1","Person 4"]
+      questions["1.4"] = ["Person 2","Person 3"]
+    elif assignment == "HW2":
+      questions["1.1"] = ["Person 3"]
+      questions["1.2"] = ["Person 1","Person 2"]
+      questions["1.3"] = ["Person 1","Person 4"]
+    else:
+      questions["1.1"] = ["Person 1","Person 2"]
+  else:
+      questions["1"] = ["Person 8"]
+      questions["2"] = ["Person 5","Person 7"]
+      questions["3"] = ["Person 5","Person 6"]
+
   return questions
   
 
 # assume that you have a dictionary of question names -> [people to grade]
 # call this grading_assignments
+# convert into person->questions
 def make_notify_list(remaining):
   toNotify = {}
-  for q in remaining:
-    g,s = remaining[q]
-    for grader in g:
-      num = g[grader]
-      if num == math.floor(s/len(g)):
-        if grader in toNotify:
-          toNotify[grader].append(q)
-        else:
-          toNotify[grader] = [q]
+  for question in remaining:
+    for person in remaining[question]:
+      if person in toNotify:
+        toNotify[person].append(question)
+      else:
+        toNotify[person] = [question]
   return toNotify
 
+## make the list of things to say to tell people
 def notify(graders,notify_list):
   messages = {}
   for grader in notify_list:
@@ -145,11 +157,6 @@ def send_notify(semester=None,graders=None):
         notify_list = make_notify_list(remaining)
         message_dict = notify(graders,notify_list)
         for m in message_dict:
-          #if a in messages[c]:
           messages[c][a] = message_dict[m]
-          #else:
-          #  messages[c] = {a:message_dict[m]}
         
   return messages 
-
-print(send_notify())

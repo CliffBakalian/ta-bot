@@ -32,14 +32,14 @@ def load_graders():
     tas[name] = people[name]
   return people
 
-def notify_grader(ctx,course,name):
+def notify_grader(course,name):
   messages = grading_stats.send_notify()
   to_send = ""
   if course in messages:
     for assignment in messages[course]:
       if name in messages[course][assignment]:
         to_send = to_send + "\nFor "+assignment+":"
-        for message in messages[course][assignmnet][name]:
+        for message in messages[course][assignment][name]:
           to_send = to_send + "\n - "+message
   return to_send
 
