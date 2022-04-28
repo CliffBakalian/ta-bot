@@ -65,7 +65,8 @@ async def grader_notify(ctx):
     for g in graders:
       ta = tas[g]
       to_send = single_grader_notify(str(ta[1]),ta)
-      await ctx.send(to_send)
+      if to_send != "":
+        await ctx.send(to_send)
   else:
     ta = tas[grader_name]
     to_send = single_grader_notify(grader_name,ta)
