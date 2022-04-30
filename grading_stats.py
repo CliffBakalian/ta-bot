@@ -88,8 +88,7 @@ def getRemainingGrading(grading_assignments, questions,sub):
 # will need to integrade to google sheets
 # return a question_name->[people to grade]
 def getGradingAssigns(course,assignment):
-  questions = {}
-  return questions
+  return sheets_parser.get_grading_assignments(course,assignment)
   
 
 # assume that you have a dictionary of question names -> [people to grade]
