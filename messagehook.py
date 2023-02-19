@@ -26,4 +26,3 @@ def task(guild, target, message):
     what = at + message
   where = SyncWebhook.from_url(config[guild+"_URL"])
   where.send(what)
-

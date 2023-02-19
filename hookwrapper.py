@@ -25,4 +25,3 @@ elif tas == 'regrades':
   print("TODO")
 elif tas == 'grading':
   print("TODO")
-
