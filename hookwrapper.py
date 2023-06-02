@@ -15,7 +15,7 @@ if tas == 'meeting':
   day = datetime.now().weekday()
   if config[guild+"_DAY"] == str(day):
     message = "We have a TA meeting today at "+config[guild+"_TIME"]
-    if config[guild+"_DAY"] == str(day):
+    if config[guild+"_PLACE"]:
       message += " in " + config[guild+"_PLACE"]
     who = "everyone"
     task(guild, who, message)
