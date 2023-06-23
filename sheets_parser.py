@@ -129,7 +129,7 @@ def mkOhTemplate(tph):
   return table
 
 
-def upload(tph,creds):
+def uploadOhTemplate(tph,creds):
   RANGE_NAME = 'OH!A1:F'+str(tph*2*(int(OH_HPD)+1)+1)
   if creds == None:
     creds = get_creds()
@@ -137,6 +137,81 @@ def upload(tph,creds):
     service = build('sheets', 'v4', credentials=creds)
     value_input_option = 'USER_ENTERED'
     table = mkOhTemplate(tph)
+    body = {
+      "range": RANGE_NAME,
+      "majorDimension": "ROWS",
+      "values": table,
+    }
+    
+    request = service.spreadsheets().values().update(spreadsheetId=OH_READER_ID, range=RANGE_NAME, valueInputOption=value_input_option, body=body)
+    response = request.execute()
+
+  except HttpError as err:
+    print(err)
+
+################ GRADING ASSIGNMENTS ###############
+
+def addSheet(name,sheet_id,creds):
+  try:
+    service = build('sheets', 'v4', credentials=creds)
+    ranges = []
+    body = { 
+    "requests": [{
+        "addSheet": {
+          "properties": {
+            "title": name
+          }
+        }
+      }
+      ]
+    }
+    request = service.spreadsheets().batchUpdate(spreadsheetId=sheet_id, body=body)
+    response = request.execute()
+  except HttpError as err:
+    print(err)
+
+def sheet_names(creds, sheet_id):
+  try:
+    service = build('sheets', 'v4', credentials=creds)
+    ranges = []
+    request = service.spreadsheets().get(spreadsheetId=sheet_id, ranges=ranges, includeGridData=False)
+    response = request.execute()
+    sheets = [s['properties']['title'] for s in response['sheets']]
+    return sheets
+  except HttpError as err:
+    print(err)
+
+def mkGaTemplate(assignment):
+  table = []
+  row = ['Question']
+  ''' I have yet to do this
+  questions = getQuestions(assignment)
+  row = row + questions
+  '''
+  table.append(row)
+  table.append(['Count'])
+  table.append(['TAs'])
+  return table,0#len(questions)
+
+def toAlpha(num):
+  vals = []
+  num += 1
+  while(num > 0):
+    vals.insert(0,chr(ord('A') + (num % 26)-1)) 
+    num = num//26
+  return "".join(vals)
+
+def uploadGaTemplate(assignment,creds):
+  names = sheet_names(creds,OH_READER_ID)
+  if assignment not in names:
+    addSheet(assignment,OH_READER_ID,creds)
+  if creds == None:
+    creds = get_creds()
+  try:
+    service = build('sheets', 'v4', credentials=creds)
+    value_input_option = 'USER_ENTERED'
+    table,count = mkGaTemplate(assignment)
+    RANGE_NAME = assignment+'!A1:'+toAlpha(count)
     body = {
       "range": RANGE_NAME,
       "majorDimension": "ROWS",

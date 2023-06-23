@@ -4,9 +4,10 @@ import datetime
 import grading_stats
 
 import discord
+from discord.utils import get
 from discord.ext import commands
 from dotenv import load_dotenv
-from sheets_parser import upload, get_creds
+from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate
 
 CLASSES = ["CMSC250","CMSC330"]
 
@@ -24,6 +25,8 @@ member_ids = {}
 tas = {}
 semester = {}
 
+CREDS = get_creds()
+
 def loadCourseIDs():
   for c in CLASSES:
     courseIDs[c] = os.getenv(c)
@@ -35,7 +38,6 @@ def loadMemberIDs():
     for member in members:
       ids[member.name] = member.id
   return ids
-
 
 def load_graders():
   people = grading_stats.loadGraders()
@@ -75,8 +77,14 @@ async def grader_notify(ctx):
     
 @bot.command(name="oh",help='creates template of OH schedule')
 async def oh_template(ctx):
-  upload(4,get_creds()) 
+  uploadOhTemplate(4,CREDS) 
   to_send = "Wrote template!"
+  await ctx.send(to_send)
+
+@bot.command(name="ga",help='creates template of GA for assignment')
+async def ga_template(ctx,assignment):
+  uploadGaTemplate(assignment,CREDS) 
+  to_send = "Wrote " + assignment + " template!"
   await ctx.send(to_send)
 
 def single_grader_notify(author,ta):
@@ -102,6 +110,13 @@ async def timesheets():
     message = "<@&"+str(ugrad)+"> Don't forget to fill out timesheets :)"
     channel = bot.get_channel(int(courseIDs[c]))
     await channel.send(message)
+
+@bot.event
+async def on_message(message):
+    if bot.user.mentioned_in(message) and message.author.name == 'profaccident':
+      emoji = get(message.guild.emojis, name='cringe')
+      await message.add_reaction(emoji)
+    await bot.process_commands(message)
 
 @bot.event
 async def on_ready():
