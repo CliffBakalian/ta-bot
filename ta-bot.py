@@ -6,16 +6,14 @@ import grading_stats
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+from sheets_parser import upload, get_creds
 
 CLASSES = ["CMSC250","CMSC330"]
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -50,6 +48,7 @@ def load_graders():
 def notify_grader(course,name):
   messages = grading_stats.send_notify()
   to_send = ""
+  print(messages)
   if course in messages:
     for assignment in messages[course]:
       if name in messages[course][assignment]:
@@ -61,7 +60,7 @@ def notify_grader(course,name):
 @bot.command(name="grading",help='Reponds with what you have left to grade')
 async def grader_notify(ctx):
   grader_name = ctx.message.author.name
-  if grader_name == "ProfAccident":
+  if grader_name == "profaccident":
     for g in graders:
       ta = tas[g]
       to_send = single_grader_notify(str(ta[1]),ta)
@@ -73,6 +72,12 @@ async def grader_notify(ctx):
     if to_send == "":
       to_send = "Congraulations! You graded everything!"
     await ctx.send(to_send)
+    
+@bot.command(name="oh",help='creates template of OH schedule')
+async def oh_template(ctx):
+  upload(4,get_creds()) 
+  to_send = "Wrote template!"
+  await ctx.send(to_send)
 
 def single_grader_notify(author,ta):
   to_send = notify_grader(ta[0],author)
@@ -106,9 +111,6 @@ async def on_ready():
   global member_ids
   member_ids = loadMemberIDs() 
   semester = grading_stats.loadSemester()
-  scheduler = AsyncIOScheduler()
-  scheduler.add_job(timesheets, CronTrigger(hour="12",minute="0",second="0",day="5"))
-  scheduler.start()
   print("done connecting")
 
 bot.run(TOKEN)
