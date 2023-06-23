@@ -2,12 +2,14 @@ import os
 import sys
 import datetime
 import grading_stats
+import re
 
 import discord
 from discord.utils import get
 from discord.ext import commands
 from dotenv import load_dotenv
 from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate
+from grading_stats import getQuestions
 
 CLASSES = ["CMSC250","CMSC330"]
 
@@ -81,11 +83,24 @@ async def oh_template(ctx):
   to_send = "Wrote template!"
   await ctx.send(to_send)
 
+@bot.command(name="test",help='for my testing purposes')
+async def testing(ctx,*args):
+  match = re.search('\d{3}',str(ctx.guild))
+  if not match:
+    await ctx.send("You are not in a valid guild or the name needs to change :(")
+  else:
+    a = getNumQuestions(" ".join(args),"CMSC"+match.group())
+    await ctx.send(a)
+
 @bot.command(name="ga",help='creates template of GA for assignment')
 async def ga_template(ctx,assignment):
-  uploadGaTemplate(assignment,CREDS) 
-  to_send = "Wrote " + assignment + " template!"
-  await ctx.send(to_send)
+  match = re.search('\d{3}',str(ctx.guild))
+  if not match:
+    await ctx.send("You are not in a valid guild or the name needs to change :(")
+  else:
+    uploadGaTemplate(assignment,CREDS,"CMSC"+match.group()) 
+    to_send = "Wrote " + assignment + " template!"
+    await ctx.send(to_send)
 
 def single_grader_notify(author,ta):
   to_send = notify_grader(ta[0],author)
@@ -113,7 +128,7 @@ async def timesheets():
 
 @bot.event
 async def on_message(message):
-    if bot.user.mentioned_in(message) and message.author.name == 'profaccident':
+    if bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
       emoji = get(message.guild.emojis, name='cringe')
       await message.add_reaction(emoji)
     await bot.process_commands(message)

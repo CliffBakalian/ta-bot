@@ -4,8 +4,6 @@ import os
 import csv
 import json
 
-import sheets_parser
-
 GRADINGFILE = ".graders.csv"
 ASSIGNMENTFILE= ".assignments.json"
 
@@ -57,6 +55,19 @@ def getGrading(semester,course,assignment):
           return a["Questions"],sub
   return None,sub
 
+def getQuestions(assignment,course):
+  semester = loadSemester()
+  cor = semester['Courses']
+  ret = []
+  for x in cor:
+    if x['Name'] == course:
+      assigns = x['Assignments']
+      for x in assigns:
+        if x['Name'] == assignment:
+          for x in x['Questions']:
+            ret.append(x['Name'])
+  return ret
+
 # assume that you have a dictionary of question names -> [people to grade]
 # call this grading_assignments
 # questions is a question json from the file
@@ -84,12 +95,6 @@ def getRemainingGrading(grading_assignments, questions,sub):
         remaining = {key:val for key, val in remaining.items() if val != 0}
         finished[question["Name"]] = list(remaining.keys())
   return finished
-
-# will need to integrade to google sheets
-# return a question_name->[people to grade]
-def getGradingAssigns(course,assignment):
-  return sheets_parser.get_grading_assignments(course,assignment)
-  
 
 # assume that you have a dictionary of question names -> [people to grade]
 # call this grading_assignments
