@@ -20,7 +20,7 @@ if tas == 'meeting':
     who = "everyone"
     task(guild, who, message)
 elif tas == 'timesheets':
-  task(sys.argv[2],ugrads,"Don't forget about timesheets")
+  task(sys.argv[2],'ugrads',"Don't forget about timesheets")
 elif tas == 'regrades':
   print("TODO")
 elif tas == 'grading':

@@ -1,3 +1,5 @@
 .env
 .assignments.json
 .graders.csv
+**__pycache__
+*.report
