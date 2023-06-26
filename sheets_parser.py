@@ -18,8 +18,8 @@ CONFIG_FILE = '/etc/config.json'
 with open(CONFIG_FILE) as config_file:
   config = json.load(config_file)
 
-CREDS_FILE = config['CREDS_FILE']#'/home/cliff/projects/ta-bot/credentials.json'
-TOKEN_FILE = config['TOKEN_FILE']#'/home/cliff/projects/ta-bot/tokens.json'
+CREDS_FILE = config['CREDS_FILE']
+TOKEN_FILE = config['TOKEN_FILE']
 
 START_TIME = config['OH_START_TIME']
 END_TIME = config['OH_END_TIME']

@@ -8,7 +8,6 @@ with open('/etc/config.json') as config_file:
   dirs = json.load(config_file)
 
 config = dotenv_values(dirs['TABOTENV'])
-print(config.keys())
 
 def task(guild, target, message):
   # figure out who to send
