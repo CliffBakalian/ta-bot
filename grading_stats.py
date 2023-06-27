@@ -1,8 +1,8 @@
 import math
 import os
-
 import csv
 import json
+
 
 GRADINGFILE = ".graders.csv"
 ASSIGNMENTFILE= ".assignments.json"
@@ -114,14 +114,29 @@ def notify(graders,notify_list):
   messages = {}
   for grader in notify_list:
     questions = notify_list[grader]
-    if graders[grader][0] in messages:
-      if graders[grader][1] in messages:
-        messages[graders[grader][0]][graders[grader][1]].append("Don't forget to grade: " + ",".join(questions))
+    course = graders[grader][1]
+    if course in messages:
+      if grader in messages:
+        messages[course][grader].append("Don't forget to grade: " + ",".join(questions))
       else:
-        messages[graders[grader][0]][graders[grader][1]] = [("Don't forget to grade: " + ",".join(questions))]
+        messages[course][grader] = [("Don't forget to grade: " + ",".join(questions))]
     else:
-        messages[graders[grader][0]] = {graders[grader][1]:[("Don't forget to grade: " + ",".join(questions))]}
+        messages[course] = {grader:[("Don't forget to grade: " + ",".join(questions))]}
   return messages
+
+def get_message(course,assignment):
+  assignments = get_grading_assignments(course,assignment)
+  ga = {}
+  for question in assignments['questions']:
+    ga[question['name']] = question['tas'] 
+
+  sem = loadSemester()
+  grading,sub = getGrading(sem,course,assignment)
+  remain = getRemainingGrading(ga,grading,3)
+  lst = make_notify_list(remain)
+  g = loadGraders()
+  m = notify(g,lst)
+  return m
 
 # returns class->assignment->graderID->message_to_send
 def send_notify(semester=None,graders=None):
@@ -150,3 +165,37 @@ def send_notify(semester=None,graders=None):
           messages[c][a] = message_dict[m]
         
   return messages 
+
+def write_grading_assignments(course,assignment,grading_assignments):
+  with open ("."+course+"_"+assignment+".grading_assignments",'w') as json_file:
+    json.dump(grading_assignments,json_file) 
+
+def parse_ga_sheet(table):
+  data = table[1:]
+  ret = {}
+  ret['deadline'] = table[0][4] #based off template
+  ret['questions'] = []
+  for col in data:
+    question = {}
+    name = col[0]
+    count = 0
+    tas = []
+    if len(col)>1:
+      count = col[1]
+      if len(col)>2:
+        tas = col[2:]
+    question['name'] = name
+    question['count'] = count
+    question['tas'] = tas
+    ret['questions'].append(question)
+  return ret
+
+def get_grading_assignments(course,assignment):
+  if not os.path.exists("."+course+"_"+assignment+".grading_assignments"):
+    from sheets_parser import read_grading_assignments
+    res = read_grading_assignments(assignment,None,course)  
+    if res != 0:
+      return "Assignment does not have grading assignments" 
+  with open("."+course+"_"+assignment+".grading_assignments") as f:
+    data = json.load(f)
+    return data

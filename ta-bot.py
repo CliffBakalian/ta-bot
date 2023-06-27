@@ -8,10 +8,10 @@ import discord
 from discord.utils import get
 from discord.ext import commands
 from dotenv import load_dotenv
-from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate
-from grading_stats import getQuestions
+from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate,read_grading_assignments
+from grading_stats import getQuestions,get_message
 
-CLASSES = ["CMSC250","CMSC330"]
+CLASSES = ["CMSC330"]
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -83,15 +83,6 @@ async def oh_template(ctx):
   to_send = "Wrote template!"
   await ctx.send(to_send)
 
-@bot.command(name="test",help='for my testing purposes')
-async def testing(ctx,*args):
-  match = re.search('\d{3}',str(ctx.guild))
-  if not match:
-    await ctx.send("You are not in a valid guild or the name needs to change :(")
-  else:
-    a = getNumQuestions(" ".join(args),"CMSC"+match.group())
-    await ctx.send(a)
-
 @bot.command(name="ga",help='creates template of GA for assignment')
 async def ga_template(ctx,assignment):
   match = re.search('\d{3}',str(ctx.guild))
@@ -100,6 +91,32 @@ async def ga_template(ctx,assignment):
   else:
     uploadGaTemplate(assignment,CREDS,"CMSC"+match.group()) 
     to_send = "Wrote " + assignment + " template!"
+    await ctx.send(to_send)
+
+@bot.command(name="get_ga",help='gets the grading assignments for assignment')
+async def ga_template(ctx,assignment):
+  match = re.search('\d{3}',str(ctx.guild))
+  if not match:
+    await ctx.send("You are not in a valid guild or the name needs to change :(")
+  else:
+    a = read_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
+    if a != 0:
+      await ctx.send("Error:\n"+a)
+    else:
+      to_send = "Got grading assignment for " + assignment
+      await ctx.send(to_send)
+
+@bot.command(name="notify",help='notifies TAs about grading')
+async def ga_template(ctx,assignment):
+  match = re.search('\d{3}',str(ctx.guild))
+  if not match:
+    await ctx.send("You are not in a valid guild or the name needs to change :(")
+  else:
+    course = "CMSC"+match.group()
+    a = get_messages(course,assignment) 
+    to_send = "Notified TAs about grading " + assignment
+    ids=loadMemberIDs()
+    #TODO
     await ctx.send(to_send)
 
 def single_grader_notify(author,ta):
@@ -117,14 +134,6 @@ async def grading_reminder():
         to_send = notify_grader(ctx,course,name)
         if to_send != "":
           await channel.send("<@!"+name+">\n"+to_send) 
-
-async def timesheets():
-  await bot.wait_until_ready()
-  for c in courseIDs:
-    ugrad = os.getenv(c+"_UGRAD")
-    message = "<@&"+str(ugrad)+"> Don't forget to fill out timesheets :)"
-    channel = bot.get_channel(int(courseIDs[c]))
-    await channel.send(message)
 
 @bot.event
 async def on_message(message):

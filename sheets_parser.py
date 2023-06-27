@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os.path
 import json
+from datetime import datetime
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -9,7 +10,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from grading_stats import getQuestions
+from grading_stats import getQuestions,parse_ga_sheet,write_grading_assignments
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SHEETS_IDs = {} 
@@ -132,11 +133,12 @@ def mkGaTemplate(assignment,course):
   questions = getQuestions(assignment,course)
   questions.sort()
   row += questions
-  print(row)
   table.append(row)
   table.append(['Count'])
   table.append(['TAs'])
-  print(len(questions))
+  table.append(['Grading Deadline'])
+  today = datetime.now()
+  table.append([str(today.day)+"-"+str(today.month)+"-"+str(today.year)])
   return table,len(questions)
 
 def toAlpha(num):
@@ -148,11 +150,11 @@ def toAlpha(num):
   return "".join(vals)
 
 def uploadGaTemplate(assignment,creds,course):
+  if creds == None:
+    creds = get_creds()
   names = sheet_names(creds,OH_READER_ID)
   if assignment not in names:
     addSheet(assignment,OH_READER_ID,creds)
-  if creds == None:
-    creds = get_creds()
   try:
     service = build('sheets', 'v4', credentials=creds)
     value_input_option = 'USER_ENTERED'
@@ -169,61 +171,22 @@ def uploadGaTemplate(assignment,creds,course):
 
   except HttpError as err:
     print(err)
+    return err
+  return 0
 
-def read_grading_assignments(sheet,course,count=-1,tab_name=""):
-  if course not in SHEETS_IDs:
-    print("course not found")
-    return
-  sheet_id=SHEETS_IDs[course]
-
-  sheet_range = tab_name+'!B:Z'
-  if count != -1:
-    sheet_range = tab_name+'!B:'+str(chr(count*2+65))
-
-  result = sheet.values().get(spreadsheetId=sheet_id,range=sheet_range).execute()
-  values = result.get('values',[])
-  if not values:
-    print("no data found")
-    return
-
-  assigns_name = [i for i in values[0] if i]
-  values = values[1:]
-  gas = {}
-  for idx,assign in enumerate(assigns_name):
-    grade_assigns = {}
-    for row in values:
-      if row[idx] == '':
-        break
-      grade_assigns[row[2*idx]] = [x.strip() for x in row[2*idx+1].split(",")]
-    gas[assign] = grade_assigns 
-  return gas
-
-def write_grading_assignments(course,grading_assignments):
-  with open ("."+course+".grading_assignments",'w') as json_file:
-    json.dump(grading_assignments,json_file) 
-
-def parse_grading_assignments(course,assignment):
-  with open("."+course+".grading_assignments") as file:
-    data = json.load(file)
-    if data and assignment in data:
-      return data[assignment]
-  return {}
-
-
-def get_num_assignmets(sheet, course):
-  result = sheet.values().get(spreadsheetId=SHEETS_IDs[course],range=course+'!A1').execute()
-  values = result.get('values',[])
-
-  if not values:
-    print("no data found")
-    return ""
-    
-  return values[0][0] 
-
-def get_grading_assignments(course,assignment):
-  if not os.path.exists("."+course+".grading_assignments"):
+def read_grading_assignments(assignment,creds,course):
+  if creds == None:
     creds = get_creds()
+  names = sheet_names(creds,OH_READER_ID)
+  if assignment not in names:
+    return "Assignment does not have grading assignments"
+  try:
     service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets()
-    write_grading_assignments(course,read_grading_assignments(sheet,course,tab_name=course))
-  return parse_grading_assignments(course,assignment)
+    request = service.spreadsheets().values().get(spreadsheetId=OH_READER_ID, range=assignment,majorDimension="COLUMNS")
+    response = request.execute()
+  except HttpError as err:
+    print(err)
+    return err
+  ga = parse_ga_sheet(response['values'])
+  write_grading_assignments(course,assignment,ga)
+  return 0
