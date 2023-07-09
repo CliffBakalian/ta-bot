@@ -188,5 +188,6 @@ def read_grading_assignments(assignment,creds,course):
     print(err)
     return err
   ga = parse_ga_sheet(response['values'])
+  print(ga)
   write_grading_assignments(course,assignment,ga)
   return 0

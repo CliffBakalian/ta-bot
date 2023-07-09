@@ -53,6 +53,49 @@ def check_new_reports(creds,course):
   else:
     remove(temp_f)
 
+############### GRADING REMINDERS ###########################
+'''
+given report:[{Name->question,Link:int,Graded=[{Grader:name,Count:num_graded}]}]
+return {question->{grader,count}}
+'''
+def report_to_hash(report):
+  ret = {}
+  for x in report:
+    question = x['Name']
+    ret[question] = {}
+    for grader in x['Graded']:
+      name = grader['Grader']
+      count = grader['Count']
+      ret[question][name] = count
+  return ret
+  
+'''
+given assigns: {question->(count,[tas])
+given report:[{Name->question,Link:int,Graded=[{Grader:name,Count:num_graded}]}]
+return remaining:{question->[(name,num_remain)]}
+'''
+SUBS = 48
+def get_remaining_grading(assigns,report):
+  report = report_to_hash(report)
+  remain = {}
+  for question,(required,tas) in assigns.items():
+    remain[question] = []  
+    graders = report[question] 
+    temp_remain = []
+    total = 0
+    for ta in tas:
+      remaining = int(required)
+      if ta in graders:
+        graded = graders[ta]
+        remaining -= graded
+        total += graded
+      if remaining > 0:
+        temp_remain.append((ta,remaining))
+    if total < SUBS:
+      remain[question] = temp_remain
+      
+  return remain
+
 def main():
   if len(sys.argv) < 1:
     sys.exit("Missing command")
