@@ -8,8 +8,10 @@ import discord
 from discord.utils import get
 from discord.ext import commands
 from dotenv import load_dotenv
+
 from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate,read_grading_assignments
-from grading_stats import getQuestions,get_message
+from grading_stats import getQuestions #,get_message
+from reminders import notify_user, notify_user_str
 
 CLASSES = ["CMSC330"]
 
@@ -49,18 +51,8 @@ def load_graders():
     tas[name] = people[name]
   return people
 
-def notify_grader(course,name):
-  messages = grading_stats.send_notify()
-  to_send = ""
-  print(messages)
-  if course in messages:
-    for assignment in messages[course]:
-      if name in messages[course][assignment]:
-        to_send = to_send + "\nFor "+assignment+":"
-        for message in messages[course][assignment][name]:
-          to_send = to_send + "\n - "+message
-  return to_send
-
+########## USER COMMANDS ##################
+'''
 @bot.command(name="grading",help='Reponds with what you have left to grade')
 async def grader_notify(ctx):
   grader_name = ctx.message.author.name
@@ -76,7 +68,9 @@ async def grader_notify(ctx):
     if to_send == "":
       to_send = "Congraulations! You graded everything!"
     await ctx.send(to_send)
-    
+'''
+
+########## ADMIN COMMANDS ##################
 @bot.command(name="oh",help='creates template of OH schedule')
 async def oh_template(ctx):
   uploadOhTemplate(4,CREDS) 
@@ -119,6 +113,30 @@ async def ga_template(ctx,assignment):
     #TODO
     await ctx.send(to_send)
 
+################ FUN STUFF ########################33
+@bot.event
+async def on_message(message):
+    if not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
+      emoji = get(message.guild.emojis, name='cringe')
+      await message.add_reaction(emoji)
+    await bot.process_commands(message)
+
+################ MAIN ########################33
+
+@bot.event
+async def on_ready():
+  loadCourseIDs()
+  global graders
+  graders = load_graders()
+  global member_ids
+  member_ids = loadMemberIDs() 
+  semester = grading_stats.loadSemester()
+  print("done connecting")
+
+bot.run(TOKEN)
+
+############# TRASH #####################
+'''
 def single_grader_notify(author,ta):
   to_send = notify_grader(ta[0],author)
   if to_send != "":
@@ -135,21 +153,15 @@ async def grading_reminder():
         if to_send != "":
           await channel.send("<@!"+name+">\n"+to_send) 
 
-@bot.event
-async def on_message(message):
-    if bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
-      emoji = get(message.guild.emojis, name='cringe')
-      await message.add_reaction(emoji)
-    await bot.process_commands(message)
-
-@bot.event
-async def on_ready():
-  loadCourseIDs()
-  global graders
-  graders = load_graders()
-  global member_ids
-  member_ids = loadMemberIDs() 
-  semester = grading_stats.loadSemester()
-  print("done connecting")
-
-bot.run(TOKEN)
+def notify_grader(course,name):
+  messages = grading_stats.send_notify()
+  to_send = ""
+  print(messages)
+  if course in messages:
+    for assignment in messages[course]:
+      if name in messages[course][assignment]:
+        to_send = to_send + "\nFor "+assignment+":"
+        for message in messages[course][assignment][name]:
+          to_send = to_send + "\n - "+message
+  return to_send
+'''

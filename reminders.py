@@ -79,22 +79,61 @@ def get_remaining_grading(assigns,report):
   report = report_to_hash(report)
   remain = {}
   for question,(required,tas) in assigns.items():
-    remain[question] = []  
     graders = report[question] 
     temp_remain = []
     total = 0
-    for ta in tas:
-      remaining = int(required)
-      if ta in graders:
-        graded = graders[ta]
-        remaining -= graded
-        total += graded
-      if remaining > 0:
-        temp_remain.append((ta,remaining))
+    for grader in graders:
+      total += graders[grader]
     if total < SUBS:
+      for ta in tas:
+        remaining = int(required)
+        if ta in graders:
+          graded = graders[ta]
+          remaining -= graded
+        if remaining > 0:
+          temp_remain.append((ta,remaining))
       remain[question] = temp_remain
-      
   return remain
+
+'''
+given remaining:{question->[(name,num_remain)]}
+return str of "You have x left of y" for each question
+None if nothing left to grade
+'''
+def notify_user_str(remain,user):
+  ret = ""
+  for question,graders in remain.items():
+    for person,count in graders:
+      if person == user:
+        ret += "You have " + str(count) + "left of " + question + "\n"
+  if ret == "":
+    ret = None
+  return ret 
+  
+
+'''
+same as notify_user_str but instead returns a nice message if nothing
+left to grade. Made for user query
+'''
+def notify_user(remain,user):
+  ret = notify_user_str(remain,user)
+  if not ret:
+    ret = "Congrats! You have nothing left to grade!"
+  return ret
+
+'''
+given tas:{name -> discord_id}
+given remaining:{question->[(name,num_remain)]}
+same as notify_user_str but for all users
+'''
+def make_notify_string(tas,remain):
+  ret = ""
+  for ta,did in tas:
+    notify_str = notify_user_str(remain,ta)
+    if notify_string:
+      ret += "<@"+str(did) + ">\n"+ notify_str+"\n"
+
+################### MAIN SHELL ############################
 
 def main():
   if len(sys.argv) < 1:

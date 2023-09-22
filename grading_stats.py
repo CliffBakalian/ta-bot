@@ -71,6 +71,7 @@ def getQuestions(assignment,course):
 # assume that you have a dictionary of question names -> [people to grade]
 # call this grading_assignments
 # questions is a question json from the file
+'''
 def getRemainingGrading(grading_assignments, questions,sub):
   finished = {}
   for question in questions:
@@ -109,7 +110,7 @@ def make_notify_list(remaining):
         toNotify[person] = [question]
   return toNotify
 
-## make the list of things to say to tell people
+# make the list of things to say to tell people
 def notify(graders,notify_list):
   messages = {}
   for grader in notify_list:
@@ -165,6 +166,7 @@ def send_notify(semester=None,graders=None):
           messages[c][a] = message_dict[m]
         
   return messages 
+'''
 
 def write_grading_assignments(course,assignment,grading_assignments):
   with open ("."+course+"_"+assignment+".grading_assignments",'w') as json_file:
