@@ -1,91 +1,241 @@
-from __future__ import print_function
-
-import os.path
-import json
 from dotenv import load_dotenv
+from utils import *
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 load_dotenv()
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SHEETS_IDs = {} 
 CLASSES = ["CMSC250","CMSC330"]
+GRADERRANGE = os.getenv("GRADERRANGE")
 
 for c in CLASSES:
   SHEETS_IDs[c] = os.getenv(c+"_SHEETS")
 
-def get_creds():
-  creds = None
-  if os.path.exists('sheets_token.json'):
-    creds = Credentials.from_authorized_user_file('sheets_token.json', SCOPES)
-  if not creds or not creds.valid:
-    if creds and creds.expired and creds.refresh_token:
-      creds.refresh(Request())
-    else:
-      flow = InstalledAppFlow.from_client_secrets_file('credentials.json',SCOPES)
-      creds = flow.run_local_server(port=0)
-    with open('sheets_token.json', 'w') as token:
-      token.write(creds.to_json())
-  return creds  
+'''
+make a new sheet (tab) in the spreadsheet
+'''
+def mk_sheet(service,name,spreadsheet_id):
+  try:
+    requests=[
+      {
+        "addSheet":{
+          "properties":{
+            "title":name
+          }
+        }
+      }
+    ]
+    body = {"requests":requests}
+    result = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+    return result
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    exit(1)
 
-def read_grading_assignments(sheet,course,count=-1,tab_name=""):
+'''
+Upload Graders to Sheets for reference
+'''
+def upload_graders(course,creds):
+  coursejson = get_course_json(course) 
+  SHEET_ID = SHEETS_IDs[course]
+
+  try:
+    service = build("sheets", "v4", credentials=creds)
+
+    response = service.spreadsheets().get(spreadsheetId=SHEET_ID).execute()
+    sheets = response['sheets']
+    tabs = list(map(lambda x: x["properties"]["title"],sheets))
+    if "Graders" not in tabs:
+      mk_sheet(service,"Graders",SHEET_ID)
+
+    values = list(map(lambda x: [x],coursejson['graders']))
+    body = {"values": values}
+    result = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=SHEET_ID,
+            range='Graders!A1:A'+str(len(values)),
+            valueInputOption="USER_ENTERED",
+            body=body,
+        )
+        .execute()
+    )
+    return result
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+'''
+data validation of graders
+'''
+def add_grader_validation(service,spreadsheet_id,sheet_id):
+  try:
+    my_range = {
+      "sheetId":sheet_id,
+      "startRowIndex":3,
+      "startColumnIndex":1
+    }
+    requests = [{
+      "setDataValidation":{
+        "range": my_range,
+        "rule":{
+          "condition":{
+            "type":"CUSTOM_FORMULA",
+            "values": [
+              {
+                "userEnteredValue": '=NOT(ISERROR(MATCH(B4,INDIRECT("'+GRADERRANGE+'"),0)))'
+              }
+            ]
+          },
+          "inputMessage": "Make sure you are useing a grader for the 'Graders' sheet",
+          "strict": False,
+          "showCustomUi": False
+        }
+      }
+    }]
+    body = {"requests": requests}
+    response = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+'''
+just highlight if incorrect
+'''
+def highlight_if_incorrect(service,spreadsheet_id,sheet_id):
+  try:
+    my_range = {
+      "sheetId":sheet_id,
+      "startRowIndex":3,
+      "startColumnIndex":1
+    }
+    requests = [{
+      "addConditionalFormatRule":{
+        "rule":{
+          "ranges":[my_range],
+          "booleanRule":{
+            "condition": {
+              "type":"CUSTOM_FORMULA",
+              "values": [
+                {
+                  "userEnteredValue": '=AND(ISERROR(MATCH(B4,INDIRECT("'+GRADERRANGE+'"),0)),NOT(ISBLANK(B4)))'
+                }
+              ]
+            },
+            "format": {
+              "backgroundColorStyle": {"rgbColor": {"red":1.0}}
+            }
+          }
+        },
+        "index":0
+        }
+      }
+    ]
+    body = {"requests": requests}
+    response = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+  
+'''
+Make the template for the given assignment and then push to google sheets
+'''
+def mk_template(course,input_assignment,creds):
+  coursejson = get_course_json(course) 
+  SHEET_ID = SHEETS_IDs[course]
+  VALUE_INPUT_OPTION="USER_ENTERED"
+  graders = coursejson['graders']
+  assignment = None
+  for assign in coursejson['assignments']:
+    if assign['name'] == input_assignment:
+      assignment = assign
+      break
+  # start to do the two(3?) headers
+  num_questions= len(assignment['questions'])
+  header1 = ["Question"] + list(map(lambda x: x['name'],assignment['questions']))
+  header2 = ['Num per UG'] + [0]*num_questions
+  header3 = ['Num per Grad'] + [0]*num_questions
+  
+  full_header = [header1,header2,header3]
+  headerlen = num_questions+1
+  range_name = "R1C1:R3C"+str(headerlen) #using R!C! notation 
+  '''
+  start writing process
+  Need to do in the following order:
+    1. make new sheet
+    2. add data (headers to sheet)
+    3. add conditional formatting
+  '''
+  try:
+    service = build("sheets","v4",credentials=creds)
+    range_name = input_assignment+"!R1C1:R3C"+str(headerlen) #using R!C! notation 
+
+    #make new sheet
+    result = mk_sheet(service,input_assignment,SHEET_ID)
+    new_sheet_id = result['replies'][0]['addSheet']['properties']['sheetId']
+
+    # DATA  
+    values = full_header
+    data = [{"range":range_name,"values":values}]
+    body = {"valueInputOption": VALUE_INPUT_OPTION, "data": data}
+    
+    result = (
+        service.spreadsheets().values()
+        .batchUpdate(spreadsheetId=SHEET_ID, body=body)
+        .execute()
+    )
+
+    highlight_if_incorrect(service,SHEET_ID,new_sheet_id)
+    add_grader_validation(service,SHEET_ID,new_sheet_id)
+
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+  return True
+
+
+'''
+download csv of grading assignments to local file
+'''
+def get_grading_assignments(course,assignment,creds):
   if course not in SHEETS_IDs:
     print("course not found")
-    return
+    exit(1)
   sheet_id=SHEETS_IDs[course]
-
-  sheet_range = tab_name+'!B:Z'
-  if count != -1:
-    sheet_range = tab_name+'!B:'+str(chr(count*2+65))
-
-  result = sheet.values().get(spreadsheetId=sheet_id,range=sheet_range).execute()
-  values = result.get('values',[])
-  if not values:
-    print("no data found")
-    return
-
-  assigns_name = [i for i in values[0] if i]
-  values = values[1:]
-  gas = {}
-  for idx,assign in enumerate(assigns_name):
-    grade_assigns = {}
-    for row in values:
-      if row[idx] == '':
-        break
-      grade_assigns[row[2*idx]] = [x.strip() for x in row[2*idx+1].split(",")]
-    gas[assign] = grade_assigns 
-  return gas
-
-def write_grading_assignments(course,grading_assignments):
-  with open ("."+course+".grading_assignments",'w') as json_file:
-    json.dump(grading_assignments,json_file) 
-
-def parse_grading_assignments(course,assignment):
-  with open("."+course+".grading_assignments") as file:
-    data = json.load(file)
-    if data and assignment in data:
-      return data[assignment]
-  return {}
-
-
-def get_num_assignmets(sheet, course):
-  result = sheet.values().get(spreadsheetId=SHEETS_IDs[course],range=course+'!A1').execute()
-  values = result.get('values',[])
-
-  if not values:
-    print("no data found")
-    return ""
-    
-  return values[0][0] 
-
-def get_grading_assignments(course,assignment):
-  if not os.path.exists("."+course+".grading_assignments"):
-    creds = get_creds()
-    service = build('sheets', 'v4', credentials=creds)
-    sheet = service.spreadsheets()
-    write_grading_assignments(course,read_grading_assignments(sheet,course,tab_name=course))
-  return parse_grading_assignments(course,assignment)
+  try:
+    service = build("sheets", "v4", credentials=creds)
+    result = (
+          service.spreadsheets()
+          .values()
+          .get(spreadsheetId=sheet_id, range=assignment)
+          .execute()
+    )
+    rows = result.get("values", [])
+    mk_grading_assignment_file("."+assignment,rows)
+    return rows
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+'''
+course="CMSC330"
+assignment="Test Quiz"
+creds = get_creds()
+upload_graders(course,creds)
+mk_template(course,assignment,creds)
+get_grading_assignments(course,assignment,creds)
+'''
