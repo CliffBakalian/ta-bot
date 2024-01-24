@@ -81,3 +81,71 @@ def mk_grading_assignment_file(file_name,data):
   grading_assignments['questions'] = questions
   with open(os.path.join(ROOT_DIR,file_name+".json"), "w") as outfile:
     json.dump(grading_assignments, outfile)
+
+'''
+given key:value pairs of time-day:person make oh file
+'''
+def mk_oh_file(file_name,data):
+  days = {}
+  for key in data:
+    time,day = tuple(key.split("-"))
+    if day not in days:
+      days[day] = {}
+    days[day][time] = data[key]
+  with open(os.path.join(ROOT_DIR,file_name+"_oh.json"), "w") as outfile:
+    json.dump(days, outfile)
+
+'''
+restructure the oh file to make blocks
+{
+  day: DAY,
+  start: time,
+  end: time,
+  name: ta_name
+}
+'''
+def mk_oh_blocks(course):
+  data = {} 
+  with open(os.path.join(ROOT_DIR,course+"_oh.json"), "r") as outfile:
+    data = json.load(outfile)
+  
+  start_time = config[course+'_OH_START_TIME']
+  end_time = config[course+'_OH_END_TIME']
+  start_hour,start_minute = tuple(map(lambda x: int(x),start_time.split(":")))
+  end_hour,end_minute = tuple(map(lambda x:int(x),end_time.split(":")))
+
+  blocks = []
+  for day in data:
+    need_to_be_processed = {}
+    curr_hour = start_hour
+    curr_min = start_minute
+
+    #get the day name for django
+    if day == "Thurs":
+      day_name = "Th"
+    else:
+      day_name = day[0]
+
+    curr_time = ":".join([str(curr_hour),str(curr_min).zfill(2)])
+
+    while curr_hour != end_hour or curr_min != end_minute:
+      tas = data[day][curr_time]
+      for ta in list(need_to_be_processed.keys()):
+        if ta in tas:
+          tas.remove(ta) # remove ta to be considered
+        else:
+          block = need_to_be_processed[ta]
+          block['end'] = curr_time #process the block
+          blocks.append(block) #add finalized block to return value
+          del need_to_be_processed[ta] #remove processed block from todo
+
+      for ta in tas:
+          block = {
+            "name":ta,
+            "start":curr_time,
+            "day":day_name
+          }
+          need_to_be_processed[ta] = block
+      curr_hour,curr_min = (curr_hour+1,0) if curr_min == 30 else (curr_hour,30)
+      curr_time = ":".join([str(curr_hour),str(curr_min).zfill(2)])
+  return blocks

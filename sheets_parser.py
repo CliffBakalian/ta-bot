@@ -1,17 +1,17 @@
 from dotenv import load_dotenv
 from utils import *
 
+from math import ceil
+
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 load_dotenv()
-SHEETS_IDs = {} 
-CLASSES = ["CMSC250","CMSC330"]
 GRADERRANGE = os.getenv("GRADERRANGE")
 
-for c in CLASSES:
-  SHEETS_IDs[c] = os.getenv(c+"_SHEETS")
+CLASSES = ["CMSC330"]
 
+############# GENERAL STUFF ###################
 '''
 make a new sheet (tab) in the spreadsheet
 '''
@@ -37,12 +37,14 @@ def mk_sheet(service,name,spreadsheet_id):
     print(f"An error occurred: {error}")
     exit(1)
 
+
+#################### GRADING ASSIGNMENTS ######################
 '''
 Upload Graders to Sheets for reference
 '''
 def upload_graders(course,creds):
   coursejson = get_course_json(course) 
-  SHEET_ID = SHEETS_IDs[course]
+  SHEET_ID = config[course+"_GRADING_ASSIGNMENTS"]
 
   try:
     service = build("sheets", "v4", credentials=creds)
@@ -155,9 +157,9 @@ def highlight_if_incorrect(service,spreadsheet_id,sheet_id):
 '''
 Make the template for the given assignment and then push to google sheets
 '''
-def mk_template(course,input_assignment,creds):
+def mk_grading_template(course,input_assignment,creds):
   coursejson = get_course_json(course) 
-  SHEET_ID = SHEETS_IDs[course]
+  SHEET_ID = config[course+"_GRADING_ASSIGNMENTS"]
   VALUE_INPUT_OPTION="USER_ENTERED"
   graders = coursejson['graders']
   assignment = None
@@ -213,10 +215,7 @@ def mk_template(course,input_assignment,creds):
 download csv of grading assignments to local file
 '''
 def get_grading_assignments(course,assignment,creds):
-  if course not in SHEETS_IDs:
-    print("course not found")
-    exit(1)
-  sheet_id=SHEETS_IDs[course]
+  sheet_id=config[course+"_GRADING_ASSIGNMENTS"]
   try:
     service = build("sheets", "v4", credentials=creds)
     result = (
@@ -231,11 +230,333 @@ def get_grading_assignments(course,assignment,creds):
   except HttpError as error:
     print(f"An error occurred: {error}")
     return error
+
+
+#################OH ###################
+def border_cells(service,spreadsheet_id,sheet_id,days_to_merge,time_to_merge,time_slots):
+  requests = []
+  yidx = 1
+  xidx = 1
+  for day in range(5):
+    yidx = 1
+    for time in range(time_slots):
+      range_name = {
+        "sheetId":sheet_id,
+        "startRowIndex": yidx,
+        "endRowIndex": yidx+time_to_merge,
+        "startColumnIndex": xidx,
+        "endColumnIndex": xidx+days_to_merge
+      }
+      outer = {
+        "style":"SOLID_MEDIUM"
+      }
+      inner = {
+        "style":"SOLID"
+      }
+      request = {
+        "updateBorders":{
+          "range":range_name,
+          "top":outer,
+          "bottom":outer,
+          "left":outer,
+          "right":outer,
+          "innerHorizontal":inner,
+          "innerVertical":inner
+        }
+      }
+      requests.append(request)
+      yidx += time_to_merge
+    xidx += days_to_merge
+
+  body = {"requests": requests}
+  try:
+    response = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+def align_cells(service,spreadsheet_id,sheet_id,days_to_merge,time_to_merge,time_slots):
+  requests = []
+  for idx in range(5*days_to_merge):
+    header_request = {
+      "updateCells": 
+      {
+        "rows": 
+        [
+          {
+            "values": 
+            [
+              {
+                "userEnteredFormat": 
+                {
+                  "horizontalAlignment": "CENTER"
+                }
+              }
+            ]
+          }
+        ],
+        "range": 
+        {
+          "sheetId": sheet_id,
+          "startRowIndex": 0,
+          "endRowIndex": 1,
+          "startColumnIndex": idx+1,
+          "endColumnIndex": idx+2
+        },
+        "fields": "userEnteredFormat"
+      }
+    }
+    requests.append(header_request)
+  for idx in range(time_slots*time_to_merge):
+    time_request = {
+      "updateCells": 
+      {
+        "rows": 
+        [
+          {
+            "values": 
+            [
+              {
+                "userEnteredFormat": 
+                {
+                  "verticalAlignment": "MIDDLE"
+                }
+              }
+            ]
+          }
+        ],
+        "range": 
+        {
+          "sheetId": sheet_id,
+          "startRowIndex": idx+1,
+          "endRowIndex": idx+2,
+          "startColumnIndex": 0,
+          "endColumnIndex": 1
+        },
+        "fields": "userEnteredFormat.verticalAlignment"
+      }
+    }
+    requests.append(time_request)
+  body = {"requests": requests}
+  try:
+    response = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+def merge_cells(service,spreadsheet_id,sheet_id,days_to_merge,time_to_merge,time_slots):
+  requests = []
+
+  #header merge
+  curr_idx = 1
+  for x in range(5):
+    new_range = {
+      "sheetId":sheet_id,
+      "startRowIndex":0,
+      "endRowIndex":1,
+      "startColumnIndex":curr_idx,
+      "endColumnIndex":curr_idx+days_to_merge 
+    }
+    request = {
+      "mergeCells":{
+        "range":new_range,
+        "mergeType": "MERGE_ALL"
+      }
+    }
+    requests.append(request)
+    curr_idx += days_to_merge
+
+  # time merge
+  curr_idx = 1
+  for x in range(time_slots):
+    new_range = {
+      "sheetId":sheet_id,
+      "startRowIndex":curr_idx,
+      "endRowIndex":curr_idx+time_to_merge,
+      "startColumnIndex":0,
+      "endColumnIndex":1
+    }
+    request = {
+      "mergeCells":{
+        "range":new_range,
+        "mergeType": "MERGE_ALL"
+      }
+    }
+    requests.append(request)
+    curr_idx += time_to_merge
+  body = {"requests": requests}
+  try:
+    response = (
+        service.spreadsheets()
+        .batchUpdate(spreadsheetId=spreadsheet_id, body=body)
+        .execute()
+    )
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+  
+def get_time_slots(course,tph):
+  table = []
+  start_time = config[course+'_OH_START_TIME']
+  start_hour,start_minute = tuple(start_time.split(":"))
+  start_hour,start_minute = int(start_hour),int(start_minute)
+
+  end_time = config[course+'_OH_END_TIME']
+  end_hour,end_minute = tuple(end_time.split(":"))
+  end_hour,end_minute = int(end_hour),int(end_minute)
+
+  curr_hour,curr_min = start_hour,start_minute
+
+  num_rows = 1
+  time_slots= 0
+  while(curr_hour != end_hour or curr_min != end_minute):
+    table.append([str(curr_hour)+":"+str(curr_min).zfill(2)])
+    num_rows += 1
+    if tph> 2:
+      table.append([])
+      num_rows += 1
+    if curr_min == 30:
+      curr_min = 0
+      curr_hour += 1
+    else:
+      curr_min += 30
+    time_slots += 1
+  return table,num_rows,time_slots
+
+def mk_OH_Template(course,creds):
+  SHEET_ID = config[course+"_OFFICE_HOURS"]
+  VALUE_INPUT_OPTION="USER_ENTERED"
+
+
+  #### create the data table
+  # Header 
+  tas_per_hour = int(os.getenv(course+"_TAS_PER_HOUR")) #ASSUME 1-6 inclusive
+  days_to_merge = ceil(tas_per_hour/2) if tas_per_hour != 2 else 2
+  table = []
+  header = ['Time']
+  days = ['Monday','Tuesday','Wednesday','Thursday','Friday']
+  for day in days:
+    header.extend([day]+([""]*(days_to_merge-1)))
+  table.append(header)
+
+  # time slots
+  time_to_merge = 2 if tas_per_hour > 2 else 1
+  '''
+    cannot assume start or end times are on the hour
+    can assume they are on the half hour
+  '''
+  data_table,num_rows,time_slots = get_time_slots(course,tas_per_hour)
+  table.extend(data_table)
+  # upload it
+  try:
+    service = build("sheets","v4",credentials=creds)
+    range_name = "OH!R1C1:R"+str(num_rows)+"C"+str(len(header))
+
+    #make new sheet
+    result = mk_sheet(service,"OH",SHEET_ID)
+    new_sheet_id = result['replies'][0]['addSheet']['properties']['sheetId']
+
+    # DATA  
+    values = table
+    data = [{"range":range_name,"values":values}]
+    body = {"valueInputOption": VALUE_INPUT_OPTION, "data": data}
+    
+    result = (
+        service.spreadsheets().values()
+        .batchUpdate(spreadsheetId=SHEET_ID, body=body)
+        .execute()
+    )
+
+    # format it
+    #add_grader_validation(service,SHEET_ID,new_sheet_id)
+    merge_cells(service,SHEET_ID,new_sheet_id,days_to_merge,time_to_merge,time_slots)
+    align_cells(service,SHEET_ID,new_sheet_id,days_to_merge,time_to_merge,time_slots)
+    border_cells(service,SHEET_ID,new_sheet_id,days_to_merge,time_to_merge,time_slots)
+
+
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
 '''
-course="CMSC330"
-assignment="Test Quiz"
-creds = get_creds()
-upload_graders(course,creds)
-mk_template(course,assignment,creds)
-get_grading_assignments(course,assignment,creds)
+make a list of keys and ranges for it
 '''
+def get_ranges(course):
+  tas_per_hour = int(os.getenv(course+"_TAS_PER_HOUR")) #ASSUME 1-6 inclusive
+  days_to_merge = ceil(tas_per_hour/2) if tas_per_hour != 2 else 2
+  time_to_merge = 2 if tas_per_hour > 2 else 1
+
+  start_time = config[course+'_OH_START_TIME']
+  start_hour,start_minute = tuple(start_time.split(":"))
+  start_hour,start_minute = int(start_hour),int(start_minute)
+
+  end_time = config[course+'_OH_END_TIME']
+  end_hour,end_minute = tuple(end_time.split(":"))
+  end_hour,end_minute = int(end_hour),int(end_minute)
+  
+  curr_hour,curr_min = start_hour,start_minute
+  
+  range_names = []
+  ranges = []
+  xidx = 2
+  yidx = 2
+  for day in ["Mon","Tues","Wed","Thurs","Fri"]:
+    yidx = 2
+    curr_hour,curr_min = start_hour,start_minute
+    while(curr_hour != end_hour or curr_min != end_minute):
+      range_name = str(curr_hour)+":"+str(curr_min).zfill(2)+"-"+day
+      range_names.append(range_name)
+      range_data = "OH!R"+str(yidx)+"C"+str(xidx)+":R"+str(yidx+time_to_merge-1)+"C"+str(xidx+days_to_merge-1)
+      ranges.append(range_data)
+
+      if curr_min == 30:
+        curr_min = 0
+        curr_hour += 1
+      else:
+        curr_min += 30
+      yidx += time_to_merge
+    xidx += days_to_merge
+  return range_names,ranges
+
+'''
+download office hours from google sheets and store in file
+'''
+def get_office_hours(course,creds):
+  range_names,ranges = get_ranges(course) 
+  sheet_id=config[course+"_OFFICE_HOURS"]
+  try:
+    service = build("sheets", "v4", credentials=creds)
+    result = (
+      service.spreadsheets()
+      .values()
+      .batchGet(spreadsheetId=sheet_id, ranges=ranges)
+      .execute()
+    )
+    data = result.get("valueRanges", [])
+    res = {}
+    for idx,range_name in enumerate(range_names):
+      # has to be a more elegant way to do this
+      value_lists = data[idx].get('values',[])
+      values = []
+      for x in value_lists:
+        values.extend(x)
+      res[range_name] = values
+    mk_oh_file(course,res)    
+  except HttpError as error:
+    print(f"An error occurred: {error}")
+    return error
+
+
+
+#mk_OH_Template("CMSC330",get_creds())
+get_office_hours("CMSC330",get_creds())
+  
+
