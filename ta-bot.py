@@ -1,21 +1,17 @@
 import os
 import sys
 import datetime
-import grading_stats
 import re
 
 import discord
 from discord.utils import get
 from discord.ext import commands
-from dotenv import load_dotenv
 
-from sheets_parser import uploadOhTemplate, get_creds, uploadGaTemplate,read_grading_assignments
-from grading_stats import getQuestions #,get_message
+from sheets_parser import upload_graders,mk_OH_Template, get_creds, mk_grading_template,get_grading_assignments,get_office_hours
+#from grading_stats import getQuestions #,get_message
 from reminders import notify_user, notify_user_str
-
-CLASSES = ["CMSC330"]
-
-load_dotenv()
+from utils import config,get_course_json
+CLASSES=config["CLASSES"]
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 intents = discord.Intents.all()
@@ -83,7 +79,7 @@ async def ga_template(ctx,assignment):
   if not match:
     await ctx.send("You are not in a valid guild or the name needs to change :(")
   else:
-    uploadGaTemplate(assignment,CREDS,"CMSC"+match.group()) 
+    mk_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
     to_send = "Wrote " + assignment + " template!"
     await ctx.send(to_send)
 
@@ -93,7 +89,7 @@ async def ga_template(ctx,assignment):
   if not match:
     await ctx.send("You are not in a valid guild or the name needs to change :(")
   else:
-    a = read_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
+    a = get_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
     if a != 0:
       await ctx.send("Error:\n"+a)
     else:
