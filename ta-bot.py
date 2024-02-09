@@ -1,4 +1,3 @@
-import os
 import sys
 import datetime
 import re
@@ -10,9 +9,9 @@ from discord.ext import commands
 from sheets_parser import upload_graders,mk_OH_Template, get_creds, mk_grading_template,get_grading_assignments,get_office_hours
 #from grading_stats import getQuestions #,get_message
 from reminders import notify_user, notify_user_str
-from utils import config,get_course_json
+from utils import config,get_course_json,denv
 CLASSES=config["CLASSES"]
-TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN = denv['DISCORD_TOKEN']
 
 intents = discord.Intents.all()
 intents.members = True
@@ -29,7 +28,7 @@ CREDS = get_creds()
 
 def loadCourseIDs():
   for c in CLASSES:
-    courseIDs[c] = os.getenv(c)
+    courseIDs[c] = denv[c]
 
 def loadMemberIDs():
   ids = {}
@@ -109,24 +108,36 @@ async def ga_template(ctx,assignment):
     #TODO
     await ctx.send(to_send)
 
-################ FUN STUFF ########################33
+################ ON MESSAGE ########################33
 @bot.event
 async def on_message(message):
     if not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
       emoji = get(message.guild.emojis, name='cringe')
       await message.add_reaction(emoji)
+    elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])):
+      piazza_re = re.compile(r'@\d+')
+      match = re.search(r'@\d+',message.content)
+      if match:
+        num = match.group(0)
+        expand ="https://piazza.com/class/"
+        expand += denv['PIAZZA_LINK']
+        expand += "/post/" + num 
+        new_message = message.content.replace(num,expand)
+        print(new_message)
     await bot.process_commands(message)
 
 ################ MAIN ########################33
 
 @bot.event
 async def on_ready():
+  '''
   loadCourseIDs()
   global graders
   graders = load_graders()
   global member_ids
   member_ids = loadMemberIDs() 
   semester = grading_stats.loadSemester()
+  '''
   print("done connecting")
 
 bot.run(TOKEN)

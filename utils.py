@@ -5,10 +5,10 @@ import os.path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv import dotenv_values
 
-CONFIG_FILE = open(os.getenv("CONFIG_FILE"))
+denv = dotenv_values(".env")
+CONFIG_FILE = open(denv["CONFIG_FILE"])
 config = json.load(CONFIG_FILE)
 
 SCOPES = config["GOOGLE_API_SCOPES"]

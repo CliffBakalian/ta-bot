@@ -6,8 +6,7 @@ from math import ceil
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-load_dotenv()
-GRADERRANGE = os.getenv("GRADERRANGE")
+GRADERRANGE = denv["GRADERRANGE"]
 
 CLASSES = ["CMSC330"]
 
@@ -438,7 +437,7 @@ def mk_OH_Template(course,creds):
 
   #### create the data table
   # Header 
-  tas_per_hour = int(os.getenv(course+"_TAS_PER_HOUR")) #ASSUME 1-6 inclusive
+  tas_per_hour = int(denv[course+"_TAS_PER_HOUR"]) #ASSUME 1-6 inclusive
   days_to_merge = ceil(tas_per_hour/2) if tas_per_hour != 2 else 2
   table = []
   header = ['Time']
@@ -490,7 +489,7 @@ def mk_OH_Template(course,creds):
 make a list of keys and ranges for it
 '''
 def get_ranges(course):
-  tas_per_hour = int(os.getenv(course+"_TAS_PER_HOUR")) #ASSUME 1-6 inclusive
+  tas_per_hour = int(denv[course+"_TAS_PER_HOUR"]) #ASSUME 1-6 inclusive
   days_to_merge = ceil(tas_per_hour/2) if tas_per_hour != 2 else 2
   time_to_merge = 2 if tas_per_hour > 2 else 1
 
