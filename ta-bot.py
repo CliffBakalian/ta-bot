@@ -57,8 +57,6 @@ async def ga_template(ctx,assignment):
       mk_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
       to_send = "Wrote " + assignment + " template!"
       await ctx.send(to_send)
-  else:
-    print("not authorized"
 
 @bot.command(name="get_ga",help='gets the grading assignments for assignment')
 async def ga_template(ctx,assignment):
