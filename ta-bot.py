@@ -93,8 +93,8 @@ async def on_message(message):
       emoji = get(message.guild.emojis, name='cringe')
       await message.add_reaction(emoji)
     elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])) and str(message.author.id) != str(denv['BOT_ID']):
-      piazza_re = re.compile(r'@\d+')
-      match = re.search(r'@\d+',message.content)
+      print(message.clean_content)
+      match = re.search(r'@\d+(_f\d+)?',message.clean_content)
       if match:
         num = match.group(0)[1:]
         expand ="https://piazza.com/class/"
