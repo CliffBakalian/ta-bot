@@ -42,45 +42,51 @@ async def grader_notify(ctx):
 ########## ADMIN COMMANDS ##################
 @bot.command(name="oh",help='creates template of OH schedule')
 async def oh_template(ctx):
-  uploadOhTemplate(4,CREDS) 
-  to_send = "Wrote template!"
-  await ctx.send(to_send)
+  if str(ctx.author.id) == str(denv['ADMIN']):
+    uploadOhTemplate(4,CREDS) 
+    to_send = "Wrote template!"
+    await ctx.send(to_send)
 
 @bot.command(name="ga",help='creates template of GA for assignment')
 async def ga_template(ctx,assignment):
-  match = re.search('\d{3}',str(ctx.guild))
-  if not match:
-    await ctx.send("You are not in a valid guild or the name needs to change :(")
+  if str(ctx.author.id) == str(denv['ADMIN']):
+    match = re.search('\d{3}',str(ctx.guild))
+    if not match:
+      await ctx.send("You are not in a valid guild or the name needs to change :(")
+    else:
+      mk_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
+      to_send = "Wrote " + assignment + " template!"
+      await ctx.send(to_send)
   else:
-    mk_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
-    to_send = "Wrote " + assignment + " template!"
-    await ctx.send(to_send)
+    print("not authorized"
 
 @bot.command(name="get_ga",help='gets the grading assignments for assignment')
 async def ga_template(ctx,assignment):
-  match = re.search('\d{3}',str(ctx.guild))
-  if not match:
-    await ctx.send("You are not in a valid guild or the name needs to change :(")
-  else:
-    a = get_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
-    if a != 0:
-      await ctx.send("Error:\n"+a)
+  if str(ctx.author.id) == str(denv['ADMIN']):
+    match = re.search('\d{3}',str(ctx.guild))
+    if not match:
+      await ctx.send("You are not in a valid guild or the name needs to change :(")
     else:
-      to_send = "Got grading assignment for " + assignment
-      await ctx.send(to_send)
+      a = get_grading_assignments(assignment,CREDS,"CMSC"+match.group()) 
+      if a != 0:
+        await ctx.send("Error:\n"+a)
+      else:
+        to_send = "Got grading assignment for " + assignment
+        await ctx.send(to_send)
 
 @bot.command(name="notify",help='notifies TAs about grading')
 async def ga_template(ctx,assignment):
-  match = re.search('\d{3}',str(ctx.guild))
-  if not match:
-    await ctx.send("You are not in a valid guild or the name needs to change :(")
-  else:
-    course = "CMSC"+match.group()
-    a = get_messages(course,assignment) 
-    to_send = "Notified TAs about grading " + assignment
-    ids=loadMemberIDs()
-    #TODO
-    await ctx.send(to_send)
+  if str(ctx.author.id) == str(denv['ADMIN']):
+    match = re.search('\d{3}',str(ctx.guild))
+    if not match:
+      await ctx.send("You are not in a valid guild or the name needs to change :(")
+    else:
+      course = "CMSC"+match.group()
+      a = get_messages(course,assignment) 
+      to_send = "Notified TAs about grading " + assignment
+      ids=loadMemberIDs()
+      #TODO
+      await ctx.send(to_send)
 
 ################ ON MESSAGE ########################33
 @bot.event
