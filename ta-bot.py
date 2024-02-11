@@ -18,33 +18,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-courseIDs = {}
-graders = {}
-member_ids = {}
-tas = {}
-semester = {}
-
 CREDS = get_creds()
-
-def loadCourseIDs():
-  for c in CLASSES:
-    courseIDs[c] = denv[c]
-
-def loadMemberIDs():
-  ids = {}
-  for guild in bot.guilds:
-    members = guild.members
-    for member in members:
-      ids[member.name] = member.id
-  return ids
-
-def load_graders():
-  people = grading_stats.loadGraders()
-  for name in people:
-    discord_name = people[name][1] 
-    tas[discord_name] = (people[name][0],name)
-    tas[name] = people[name]
-  return people
 
 ########## USER COMMANDS ##################
 '''
@@ -114,16 +88,15 @@ async def on_message(message):
     if not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
       emoji = get(message.guild.emojis, name='cringe')
       await message.add_reaction(emoji)
-    elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])):
+    elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])) and str(message.author.id) != str(denv['BOT_ID']):
       piazza_re = re.compile(r'@\d+')
       match = re.search(r'@\d+',message.content)
       if match:
-        num = match.group(0)
+        num = match.group(0)[1:]
         expand ="https://piazza.com/class/"
         expand += denv['PIAZZA_LINK']
         expand += "/post/" + num 
-        new_message = message.content.replace(num,expand)
-        print(new_message)
+        await message.reply(expand)
     await bot.process_commands(message)
 
 ################ MAIN ########################33
