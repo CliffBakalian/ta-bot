@@ -96,7 +96,8 @@ async def on_message(message):
         expand ="https://piazza.com/class/"
         expand += denv['PIAZZA_LINK']
         expand += "/post/" + num 
-        await message.reply(expand)
+        m = await message.reply(expand)
+        await m.edit(suppress=True)
     await bot.process_commands(message)
 
 ################ MAIN ########################33
