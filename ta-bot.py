@@ -94,9 +94,9 @@ async def on_message(message):
       await message.add_reaction(emoji)
     elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])) and str(message.author.id) != str(denv['BOT_ID']):
       print(message.clean_content)
-      match = re.search(r'@\d+(_f\d+)?',message.clean_content)
+      match = re.search(r'(^|\s+)(@\d+(_f\d+)?)',message.clean_content)
       if match:
-        num = match.group(0)[1:]
+        num = match.group(2)[1:]
         expand ="https://piazza.com/class/"
         expand += denv['PIAZZA_LINK']
         expand += "/post/" + num 
