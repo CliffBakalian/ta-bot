@@ -18,6 +18,7 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+PIAZZA_CHNLS = [str(denv['CMSC330_PIAZZA_CHNL_ID']),str(denv['TABOTHA_CHNL'])]
 CREDS = get_creds()
 
 ########## USER COMMANDS ##################
@@ -92,7 +93,7 @@ async def on_message(message):
     if not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
       emoji = get(message.guild.emojis, name='cringe')
       await message.add_reaction(emoji)
-    elif (str(message.channel.id) == str(denv['CMSC330_PIAZZA_CHNL_ID'])) and str(message.author.id) != str(denv['BOT_ID']):
+    elif (str(message.channel.id) in PIAZZA_CHNLS) and str(message.author.id) != str(denv['BOT_ID']):
       print(message.clean_content)
       match = re.search(r'(^|\s+)(@\d+(_f\d+)?)',message.clean_content)
       if match:
