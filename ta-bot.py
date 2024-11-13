@@ -88,22 +88,23 @@ async def ga_template(ctx,assignment):
       await ctx.send(to_send)
 
 ################ ON MESSAGE ########################33
+piazza_regex = re.compile(r'(^|\s+)(@\d+(_f\d+)?)')
 @bot.event
 async def on_message(message):
-    if not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
-      emoji = get(message.guild.emojis, name='cringe')
-      await message.add_reaction(emoji)
-    elif (str(message.channel.id) in PIAZZA_CHNLS) and str(message.author.id) != str(denv['BOT_ID']):
-      print(message.clean_content)
-      match = re.search(r'(^|\s+)(@\d+(_f\d+)?)',message.clean_content)
-      if match:
-        num = match.group(2)[1:]
-        expand ="https://piazza.com/class/"
-        expand += denv['PIAZZA_LINK']
-        expand += "/post/" + num 
-        m = await message.reply(expand)
-        await m.edit(suppress=True)
-    await bot.process_commands(message)
+  if (str(message.channel.id) in PIAZZA_CHNLS) and str(message.author.id) != str(denv['BOT_ID']):
+    print(message.clean_content)
+    match = re.search(piazza_regex,message.clean_content)
+    if match:
+      num = match.group(2)[1:]
+      expand ="https://piazza.com/class/"
+      expand += denv['PIAZZA_LINK']
+      expand += "/post/" + num 
+      m = await message.reply(expand)
+      await m.edit(suppress=True)
+  elif not message.mention_everyone and bot.user.mentioned_in(message):# and message.author.name == 'profaccident':
+    emoji = get(message.guild.emojis, name='cringe')
+    await message.add_reaction(emoji)
+  await bot.process_commands(message)
 
 ################ MAIN ########################33
 

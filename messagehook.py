@@ -39,3 +39,8 @@ def test_task(guild, target, message):
     what = at + message
   where = SyncWebhook.from_url(denv[guild+"_TEST_BOT"])
   where.send(what)
+
+from grading import *
+res = (format_count_results(get_counts_from_json("quiz1")))
+for r in res:
+  task("CMSC330",None,r)
